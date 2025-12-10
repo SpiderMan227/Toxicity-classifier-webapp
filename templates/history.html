@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prediction History - Toxicity Classifier</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --bg-gradient-start: #f3f7ff;
+      --bg-gradient-end: #eef6f9;
+      --card-bg: #ffffff;
+      --text-primary: #0f172a;
+      --text-muted: #6c757d;
+      --border-color: rgba(0,0,0,0.1);
+    }
+    body{
+      min-height:100vh;
+      background: linear-gradient(180deg,var(--bg-gradient-start),var(--bg-gradient-end));
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: var(--text-primary);
+    }
+    .card {
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(15,23,42,0.06);
+      background: var(--card-bg);
+      border: none;
+    }
+    .chart-container {
+      position: relative;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem 0;
+    }
+    .chart-container canvas {
+      max-height: 100%;
+    }
+    .history-table {
+      font-size: 0.9rem;
+      color: #0f172a;
+    }
+    .history-table tbody tr {
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.2s;
+    }
+    .history-table tbody tr:hover {
+      background-color: rgba(79,70,229,0.05);
+    }
+    .history-table thead th {
+      color: #0f172a;
+    }
+    .stat-badge {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 600;
+      margin: 0.5rem;
+    }
+    .stat-safe {
+      background: rgba(22,163,74,0.1);
+      color: #16a34a;
+      border-left: 4px solid #16a34a;
+    }
+    .stat-moderate {
+      background: rgba(217,119,6,0.1);
+      color: #d97706;
+      border-left: 4px solid #d97706;
+    }
+    .stat-toxic {
+      background: rgba(220,38,38,0.1);
+      color: #dc2626;
+      border-left: 4px solid #dc2626;
+    }
+    /* Dark mode */
+    body.dark-mode{
+      --bg-gradient-start: #0b1220;
+      --bg-gradient-end: #0f1724;
+      --card-bg: #1a2332;
+      --text-primary: #e6eef8;
+      --text-muted: #a0aec0;
+      --border-color: rgba(255,255,255,0.1);
+      background: linear-gradient(180deg,var(--bg-gradient-start),var(--bg-gradient-end));
+    }
+    body.dark-mode .card { 
+      box-shadow: 0 4px 20px rgba(2,6,23,0.8);
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+    }
+    body.dark-mode .history-table tbody tr {
+      border-bottom-color: var(--border-color);
+    }
+    body.dark-mode .history-table tbody tr:hover {
+      background-color: rgba(79,70,229,0.15);
+    }
+    body.dark-mode .table-light {
+      background-color: rgba(255,255,255,0.05) !important;
+    }
+    body.dark-mode h4,
+    body.dark-mode h5 {
+      color: var(--text-primary);
+    }
+    body.dark-mode .btn-outline-primary {
+      color: #4f46e5;
+      border-color: #4f46e5;
+    }
+    body.dark-mode .btn-outline-primary:hover {
+      background-color: #4f46e5;
+      border-color: #4f46e5;
+    }
+    body.dark-mode .btn-outline-danger {
+      color: #dc2626;
+      border-color: #dc2626;
+    }
+    body.dark-mode .btn-outline-danger:hover {
+      background-color: #dc2626;
+      border-color: #dc2626;
+    }
+    body.dark-mode .small {
+      color: var(--text-muted);
+    }
+    body.dark-mode .text-muted {
+      color: var(--text-muted) !important;
+    }
+  </style>
+</head>
+<body>
+  <nav class="py-3" style="border-bottom: 1px solid var(--border-color);">
+    <div class="container d-flex justify-content-between align-items-center">
+      <div>
+        <h4 class="mb-0" style="color: var(--text-primary);">📊 Prediction History</h4>
+        <small style="color: var(--text-muted);">View all your predictions and statistics</small>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <a href="/" class="btn btn-sm btn-outline-primary">← Back to Classifier</a>
+        <label class="me-2" style="color: var(--text-muted); margin-bottom: 0;">Dark mode</label>
+        <div class="form-check form-switch">
+          <input class="form-check-input" id="darkToggle" type="checkbox" />
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-4">
+    <div class="row gx-3 mb-4">
+      <!-- Statistics Cards -->
+      <div class="col-12">
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <div class="stat-badge stat-safe">
+            <div class="small" style="color: var(--text-muted);">Safe</div>
+            <div class="h5" id="safeStat" style="color: #16a34a; margin: 0;">0</div>
+          </div>
+          <div class="stat-badge stat-moderate">
+            <div class="small" style="color: var(--text-muted);">Moderately Toxic</div>
+            <div class="h5" id="moderateStat" style="color: #d97706; margin: 0;">0</div>
+          </div>
+          <div class="stat-badge stat-toxic">
+            <div class="small" style="color: var(--text-muted);">Toxic</div>
+            <div class="h5" id="toxicStat" style="color: #dc2626; margin: 0;">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row gx-3">
+      <!-- Pie Chart -->
+      <div class="col-12 col-lg-5">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title mb-4" style="color: var(--text-primary);">📈 Classification Distribution</h5>
+            <div class="chart-container">
+              <canvas id="historyChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Table -->
+      <div class="col-12 col-lg-7">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="card-title mb-0" style="color: var(--text-primary);">📝 Recent Predictions</h5>
+              <button class="btn btn-sm btn-outline-danger" onclick="clearHistory()">Clear All</button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover history-table mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Text</th>
+                    <th>Classification</th>
+                    <th>Score</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                  <tr>
+                    <td colspan="4" style="text-align: center; padding: 1rem; color: #0f172a;">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-center small mt-5" style="color: var(--text-muted);">
+      Toxicity model demo • Built with Flask & Transformers
+    </footer>
+  </main>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let historyChart = null;
+
+    (function(){
+      // Dark mode
+      const darkToggle = document.getElementById('darkToggle');
+      
+      function applyDarkMode(enabled){
+        if(enabled) {
+          document.body.classList.add('dark-mode');
+        } else {
+          document.body.classList.remove('dark-mode');
+        }
+        // Redraw chart with new colors
+        if (historyChart) {
+          setTimeout(loadHistory, 100);
+        }
+      }
+      
+      const stored = localStorage.getItem('dark_mode');
+      const init = stored === null ? false : stored === 'true';
+      applyDarkMode(init);
+      darkToggle.checked = init;
+      darkToggle.addEventListener('change', (e) => {
+        applyDarkMode(e.target.checked);
+        localStorage.setItem('dark_mode', String(e.target.checked));
+      });
+
+      // Load history on page load
+      loadHistory();
+    })();
+
+    function getChartColors() {
+      const isDarkMode = document.body.classList.contains('dark-mode');
+      const textColor = isDarkMode ? '#e6eef8' : '#0f172a';
+      
+      return {
+        safe: { border: '#16a34a', bg: isDarkMode ? 'rgba(22,163,74,0.08)' : 'rgba(22,163,74,0.02)' },
+        moderate: { border: '#d97706', bg: isDarkMode ? 'rgba(217,119,6,0.08)' : 'rgba(217,119,6,0.02)' },
+        toxic: { border: '#dc2626', bg: isDarkMode ? 'rgba(220,38,38,0.08)' : 'rgba(220,38,38,0.02)' },
+        text: textColor
+      };
+    }
+
+    function loadHistory() {
+      fetch('/history')
+        .then(r => r.json())
+        .then(data => {
+          // Update stat badges
+          document.getElementById('safeStat').textContent = data.counts.Safe || 0;
+          document.getElementById('moderateStat').textContent = data.counts['Moderately Toxic'] || 0;
+          document.getElementById('toxicStat').textContent = data.counts.Toxic || 0;
+
+          // Update pie chart
+          const ctx = document.getElementById('historyChart').getContext('2d');
+          const colors = getChartColors();
+          
+          if (historyChart) historyChart.destroy();
+          
+          historyChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: ['Safe', 'Moderately Toxic', 'Toxic'],
+              datasets: [{
+                data: [data.counts.Safe || 0, data.counts['Moderately Toxic'] || 0, data.counts.Toxic || 0],
+                borderColor: ['#16a34a', '#d97706', '#dc2626'],
+                borderWidth: 4,
+                backgroundColor: [colors.safe.bg, colors.moderate.bg, colors.toxic.bg],
+                borderSkipped: false,
+                borderRadius: 8,
+                spacing: 8
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: {
+                    color: colors.text,
+                    font: { size: 12, weight: '500' },
+                    padding: 15,
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                  }
+                },
+                tooltip: {
+                  backgroundColor: colors.text === '#e6eef8' ? 'rgba(15,23,42,0.9)' : 'rgba(230,238,248,0.9)',
+                  titleColor: colors.text === '#e6eef8' ? '#e6eef8' : '#0f172a',
+                  bodyColor: colors.text === '#e6eef8' ? '#e6eef8' : '#0f172a',
+                  borderColor: colors.text === '#e6eef8' ? 'rgba(230,238,248,0.2)' : 'rgba(15,23,42,0.2)',
+                  borderWidth: 1,
+                  padding: 12,
+                  displayColors: true,
+                  callbacks: {
+                    label: function(context) {
+                      const label = context.label || '';
+                      const value = context.parsed || 0;
+                      const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                      const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                      return label + ': ' + value + ' (' + percentage + '%)';
+                    }
+                  }
+                }
+              }
+            }
+          });
+
+          // Update history table
+          const tbody = document.getElementById('historyTableBody');
+          if (data.history.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 1rem; color: #0f172a;">No predictions yet. Start by making a prediction!</td></tr>';
+          } else {
+            tbody.innerHTML = data.history.slice().reverse().map(h => {
+              const time = new Date(h.timestamp).toLocaleString();
+              const badgeClass = h.toxicity_class === 'Safe' ? 'bg-success' : h.toxicity_class === 'Moderately Toxic' ? 'bg-warning text-dark' : 'bg-danger';
+              return `
+                <tr>
+                  <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: #0f172a;" title="${h.text}">
+                    <small>${h.text}</small>
+                  </td>
+                  <td>
+                    <span class="badge ${badgeClass}" style="font-size:0.8rem;">${h.toxicity_class}</span>
+                  </td>
+                  <td style="color: #0f172a;">
+                    <strong>${(h.max_prob*100).toFixed(1)}%</strong>
+                  </td>
+                  <td style="color: #0f172a;">
+                    <small>${time}</small>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        });
+    }
+
+    function clearHistory() {
+      if (confirm('Clear all prediction history? This cannot be undone.')) {
+        fetch('/clear-history', { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) loadHistory();
+          });
+      }
+    }
+
+    // Reload history every 3 seconds
+    setInterval(loadHistory, 3000);
+  </script>
+</body>
+</html>

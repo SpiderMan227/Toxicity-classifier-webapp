@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Toxicity Classifier - Modern AI Detection</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root{
+      /* color tokens used throughout the page */
+      --text-primary: #0f172a;
+      --text-muted: #64748b;
+      --card-bg: #ffffff;
+      --accent: #4f46e5;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+    }
+
+    * {
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #f0f4ff 100%);
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
+      color: var(--text-primary);
+    }
+
+    body.dark-mode{
+      --text-primary: #e6eef8;    /* main text in dark mode */
+      --text-muted: #9aa6b8;      /* muted text in dark mode */
+      --card-bg: rgba(26,38,68,0.75);
+      background: linear-gradient(135deg,#071028 0%, #10273f 60%);
+    }
+
+    /* Ensure most elements inherit the tokenized colors in dark mode.
+       This overrides any places where text was previously hardcoded black. */
+    body.dark-mode,
+    body.dark-mode .hero-subtitle,
+    body.dark-mode .hero-title,
+    body.dark-mode .chip-button,
+    body.dark-mode .chip-button *,
+    body.dark-mode .form-text,
+    body.dark-mode .empty-state,
+    body.dark-mode .empty-state * ,
+    body.dark-mode .analyzed-text,
+    body.dark-mode .label-name,
+    body.dark-mode .label-item,
+    body.dark-mode .summary-badges,
+    body.dark-mode .badge-pill,
+    body.dark-mode footer,
+    body.dark-mode .muted-box,
+    body.dark-mode .navbar-brand,
+    body.dark-mode .card-title,
+    body.dark-mode h4,
+    body.dark-mode h5,
+    body.dark-mode .small,
+    body.dark-mode .text-muted {
+      color: var(--text-primary) !important;
+    }
+
+    /* Keep muted UI elements slightly lighter in dark mode */
+    body.dark-mode .text-muted,
+    body.dark-mode .small,
+    body.dark-mode .muted-box {
+      color: var(--text-muted) !important;
+    }
+
+    /* Make placeholder text readable in dark mode */
+    body.dark-mode ::placeholder {
+      color: var(--text-muted) !important;
+    }
+
+    /* Buttons/badges contrast adjustments */
+    body.dark-mode .btn-predict {
+      box-shadow: 0 8px 25px rgba(79,70,229,0.18);
+    }
+    body.dark-mode .badge {
+      color: #fff;
+    }
+
+    /* Ensure progress bars & label items are visible */
+    body.dark-mode .label-item { border-bottom-color: rgba(255,255,255,0.06); }
+    body.dark-mode .progress-bar-custom { box-shadow: none; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #f0f4ff 100%);
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
+      color: var(--text-primary);
+    }
+
+    body.dark-mode {
+      background: linear-gradient(135deg, #0f172a 0%, #1a2644 50%, #1e3a5f 100%);
+      color: #e6eef8;
+    }
+
+    .navbar {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(var(--glass-blur));
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    body.dark-mode .navbar {
+      background: rgba(15, 23, 42, 0.6);
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .hero-section {
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+
+    .hero-title {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .hero-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+    }
+
+    body.dark-mode .glass-card {
+      background: rgba(26, 38, 68, 0.7);
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .form-control, .form-control:focus {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+      background: #ffffff;
+    }
+
+    body.dark-mode .form-control {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #e6eef8;
+    }
+
+    body.dark-mode .form-control::placeholder {
+      color: #a0aec0;
+    }
+
+    body.dark-mode .form-control:focus {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent);
+    }
+
+    .btn-predict {
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      border: none;
+      border-radius: 12px;
+      padding: 0.75rem 2rem;
+      font-weight: 600;
+      color: white;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-predict:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+      color: white;
+    }
+
+    .btn-predict:active {
+      transform: translateY(0);
+    }
+
+    .btn-predict:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .spinner-border {
+      width: 1rem;
+      height: 1rem;
+      border-width: 0.2em;
+      margin-right: 0.5rem;
+    }
+
+    .chip-button {
+      background: rgba(79, 70, 229, 0.1);
+      border: 1px solid rgba(79, 70, 229, 0.3);
+      border-radius: 24px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+
+    .chip-button:hover {
+      background: rgba(79, 70, 229, 0.2);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    body.dark-mode .chip-button {
+      background: rgba(79, 70, 229, 0.15);
+      border-color: rgba(79, 70, 229, 0.4);
+      color: #e6eef8;
+    }
+
+    .range-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(to right, var(--success), var(--warning), var(--danger));
+      outline: none;
+    }
+
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 2px solid var(--accent);
+    }
+
+    .range-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 2px solid var(--accent);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .empty-icon {
+      font-size: 4rem;
+      opacity: 0.3;
+      margin-bottom: 1rem;
+    }
+
+    .verdict-badge {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      border-radius: 24px;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      animation: slideDown 0.4s ease;
+    }
+
+    .verdict-safe {
+      background: rgba(22, 163, 74, 0.1);
+      color: var(--success);
+      border: 2px solid var(--success);
+    }
+
+    .verdict-toxic {
+      background: rgba(220, 38, 38, 0.1);
+      color: var(--danger);
+      border: 2px solid var(--danger);
+    }
+
+    .verdict-moderate {
+      background: rgba(217,119,6,0.08);
+      color: var(--warning);
+      border: 2px solid var(--warning);
+    }
+
+    .analyzed-text {
+      background: rgba(0, 0, 0, 0.04);
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-primary);
+      word-break: break-word;
+    }
+
+    body.dark-mode .analyzed-text {
+      background: rgba(255, 255, 255, 0.05);
+      color: #e6eef8;
+    }
+
+    .label-item {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      animation: fadeIn 0.4s ease;
+    }
+
+    body.dark-mode .label-item {
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .label-name {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .progress-bar-custom {
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--warning));
+      width: 0;
+      transition: width 0.5s ease;
+    }
+
+    .summary-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .badge-pill {
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    .results-section {
+      animation: fadeIn 0.4s ease;
+    }
+
+    @media (max-width: 768px) {
+      .hero-title {
+        font-size: 2rem;
+      }
+      .glass-card {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg sticky-top">
+    <div class="container d-flex justify-content-between align-items-center">
+      <a href="/" class="navbar-brand" style="font-weight: 700; font-size: 1.3rem;">
+        <i class="fas fa-shield-alt"></i> Toxicity Detector
+      </a>
+      <div class="d-flex align-items-center gap-3">
+        <a href="/history_page" class="btn btn-sm btn-outline-primary" style="border-radius: 8px;">
+          <i class="fas fa-history"></i> History
+        </a>
+        <div class="form-check form-switch" style="margin: 0;">
+          <input class="form-check-input" type="checkbox" id="darkToggle" />
+          <label class="form-check-label" for="darkToggle" style="margin-bottom: 0;">
+            <i class="fas fa-moon"></i>
+          </label>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <div class="hero-section">
+    <div class="hero-title">
+      <i class="fas fa-magic"></i> Toxicity Classifier
+    </div>
+    <div class="hero-subtitle">
+      AI-powered detection of toxic signals across multiple categories
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="container py-4">
+    <div class="row g-4">
+      <!-- Input Section -->
+      <div class="col-12 col-lg-6">
+        <div class="glass-card">
+          <h5 class="mb-3" style="font-weight: 600;">
+            <i class="fas fa-pen"></i> Enter Your Comment
+          </h5>
+
+          <form method="POST" action="/" id="predictForm">
+            <div class="mb-3">
+              <textarea 
+                name="comment" 
+                id="comment" 
+                class="form-control" 
+                rows="5"
+                placeholder="Type or paste a comment to analyze..."
+                required
+              >{{ input_text | default('') }}</textarea>
+            </div>
+
+            <!-- Example Chips -->
+            <div class="mb-3">
+              <label class="small text-muted d-block mb-2">Quick examples:</label>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="chip-button" data-example="You are a legend">
+                  <i class="fas fa-thumbs-up"></i> You are a legend
+                </button>
+                <button type="button" class="chip-button" data-example="I hate you so much">
+                  <i class="fas fa-fire"></i> I hate you so much
+                </button>
+                <button type="button" class="chip-button" data-example="Get lost, nobody wants you here">
+                  <i class="fas fa-ban"></i> Get lost
+                </button>
+                <button type="button" class="chip-button" data-example="Have a great day!">
+                  <i class="fas fa-star"></i> Have a great day!
+                </button>
+              </div>
+            </div>
+
+            <!-- Threshold Slider (removed) -->
++            <!-- (threshold slider removed — server uses default sensitivity) -->
++            <div class="mb-2">
++              <small class="text-muted d-block">
++                <i class="fas fa-info-circle"></i> Detection uses the app's default sensitivity.
++              </small>
++            </div>
+
+            <!-- Predict Button -->
+            <button type="submit" class="btn btn-predict w-100" id="predictBtn">
+              <i class="fas fa-bolt"></i> <span id="btnText">Analyze Now</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <div class="col-12 col-lg-6">
+        <div class="glass-card">
+          {% set have_results = probs is not none and preds is not none %}
+
+          {% if not have_results %}
+            <!-- Empty State -->
+            <div class="empty-state">
+              <div class="empty-icon">
+                <i class="fas fa-inbox"></i>
+              </div>
+              <h5 style="font-weight: 600;">No Analysis Yet</h5>
+              <p class="text-muted">
+                Enter a comment on the left and click "Analyze Now" to see detailed toxicity insights.
+              </p>
+            </div>
+          {% else %}
+            <!-- Results -->
+            <div class="results-section">
+              {# use server-side toxicity_class (consistent with history) #}
+              {% set highest_prob = (probs | max) if probs else 0 %}
+
+              <!-- Verdict Badge (USE toxicity_class) -->
+              <div style="text-align: center; margin-bottom: 1.5rem;">
+                {% if toxicity_class == "Toxic" %}
+                  <div class="verdict-badge verdict-toxic">
+                    <i class="fas fa-exclamation-circle"></i> Toxic Content Detected
+                  </div>
+                  <div style="font-size: 0.9rem; color: var(--text-muted);">
+                    Confidence: <strong style="color: var(--danger);">{{ (highest_prob*100)|round(1) }}%</strong>
+                  </div>
+                {% elif toxicity_class == "Moderately Toxic" %}
+                  <div class="verdict-badge verdict-moderate">
+                    <i class="fas fa-exclamation-triangle"></i> Moderately Toxic
+                  </div>
+                  <div style="font-size: 0.9rem; color: var(--text-muted);">
+                    Confidence: <strong style="color: var(--warning);">{{ (highest_prob*100)|round(1) }}%</strong>
+                  </div>
+                {% else %}
+                  <div class="verdict-badge verdict-safe">
+                    <i class="fas fa-check-circle"></i> Safe Comment
+                  </div>
+                  <div style="font-size: 0.9rem; color: var(--text-muted);">
+                    Confidence: <strong style="color: var(--success);">{{ (highest_prob*100)|round(1) }}%</strong>
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- Analyzed Text -->
+              <div class="analyzed-text">
+                <small class="text-muted d-block mb-2"><i class="fas fa-quote-left"></i> Analyzed</small>
+                {{ input_text | default('') }}
+              </div>
+
+              <!-- Summary Badges -->
+              <div class="summary-badges">
+                {% if overall_toxic %}
+                  {% for label in labels %}
+                    {% if preds[loop.index0] %}
+                      <span class="badge-pill badge bg-danger">
+                        <i class="fas fa-exclamation"></i> {{ label|replace('_',' ')|title }}
+                      </span>
+                    {% endif %}
+                  {% endfor %}
+                {% else %}
+                  <span class="badge-pill badge bg-success">
+                    <i class="fas fa-check"></i> All Clear
+                  </span>
+                {% endif %}
+              </div>
+
+              <!-- Label Details -->
+              <h6 class="mt-3 mb-2" style="font-weight: 600;">Detailed Analysis</h6>
+              {% for label in labels %}
+                {% set i = loop.index0 %}
+                <div class="label-item">
+                  <div class="label-name">
+                    <span>{{ label|replace('_',' ')|title }}</span>
+                    <span style="font-size: 0.85rem;">{{ (probs[i]*100)|round(1) }}%</span>
+                  </div>
+                  <div style="height: 8px; background: rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
+                    <div class="progress-bar-custom" style="width: {{ (probs[i]*100)|round(1) }}%;"></div>
+                  </div>
+                  {% if preds[i] %}
+                    <span class="badge bg-danger" style="font-size: 0.75rem;">
+                      <i class="fas fa-times-circle"></i> Toxic
+                    </span>
+                  {% else %}
+                    <span class="badge bg-success" style="font-size: 0.75rem;">
+                      <i class="fas fa-check-circle"></i> Safe
+                    </span>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="text-center py-4 mt-5">
+    <small style="color: var(--text-muted);">
+      <i class="fas fa-shield-alt"></i> Toxicity Classifier • Powered by AI
+    </small>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function() {
+      const darkToggle = document.getElementById('darkToggle');
+      const chipButtons = document.querySelectorAll('.chip-button');
+      const commentTextarea = document.getElementById('comment');
+      const predictForm = document.getElementById('predictForm');
+      const predictBtn = document.getElementById('predictBtn');
+      const btnText = document.getElementById('btnText');
+
+      // Dark Mode
+      function applyDarkMode(enabled) {
+        if (enabled) {
+          document.body.classList.add('dark-mode');
+        } else {
+          document.body.classList.remove('dark-mode');
+        }
+      }
+
+      const storedDarkMode = localStorage.getItem('dark_mode');
+      const isDarkMode = storedDarkMode === 'true';
+      applyDarkMode(isDarkMode);
+      darkToggle.checked = isDarkMode;
+
+      darkToggle.addEventListener('change', (e) => {
+        const enabled = e.target.checked;
+        applyDarkMode(enabled);
+        localStorage.setItem('dark_mode', String(enabled));
+      });
+
+      // Chip buttons
+      chipButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          commentTextarea.value = btn.dataset.example;
+          commentTextarea.focus();
+        });
+      });
+
+      // Predict button loading state
+      predictForm.addEventListener('submit', () => {
+        predictBtn.disabled = true;
+        btnText.innerHTML = '<span class="spinner-border"></span>Analyzing...';
+      });
+    })();
+  </script>
+</body>
+</html>

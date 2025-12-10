@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+*.venv
+.env
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Model/artifacts
+toxic_model/
+toxic_tokenizer/
+test_predictions.csv
+
+# VSCode
+.vscode/
+
+# Distribution / packaging
+dist/
+build/
+.eggs/
